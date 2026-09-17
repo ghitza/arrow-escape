@@ -1,0 +1,1031 @@
+"use strict";
+
+// Grila este de două ori mai deasă decât în prima versiune.
+const COLS = 20;
+const ROWS = 28;
+const MAX_LIVES = 3;
+const LIFE_REGEN_MS = 5 * 60 * 1000;
+const STORAGE_KEY = "arrowEscapeReferenceV2";
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4.5;
+const DIRECTIONS = [
+  { dx: 1, dy: 0, name: "right" },
+  { dx: -1, dy: 0, name: "left" },
+  { dx: 0, dy: 1, name: "down" },
+  { dx: 0, dy: -1, name: "up" }
+];
+
+// Nivelul 1 este pregătit și verificat dinainte, pentru aspectul dens din referință.
+const CURATED_LEVEL_ONE = {"arrows":[{"id":1,"cells":[{"x":10,"y":7},{"x":11,"y":7},{"x":12,"y":7},{"x":13,"y":7},{"x":13,"y":6},{"x":13,"y":5},{"x":13,"y":4},{"x":13,"y":3},{"x":13,"y":2},{"x":13,"y":1},{"x":13,"y":0}],"dir":{"dx":0,"dy":-1},"createdAt":0},{"id":2,"cells":[{"x":1,"y":2},{"x":1,"y":1},{"x":1,"y":0},{"x":0,"y":0}],"dir":{"dx":-1,"dy":0},"createdAt":1},{"id":3,"cells":[{"x":0,"y":1},{"x":0,"y":2},{"x":0,"y":3},{"x":1,"y":3},{"x":2,"y":3},{"x":2,"y":2},{"x":2,"y":1},{"x":2,"y":0},{"x":3,"y":0},{"x":4,"y":0},{"x":4,"y":1},{"x":4,"y":2},{"x":4,"y":3},{"x":4,"y":4},{"x":4,"y":5},{"x":4,"y":6},{"x":4,"y":7},{"x":4,"y":8},{"x":4,"y":9},{"x":4,"y":10},{"x":5,"y":10},{"x":5,"y":9},{"x":5,"y":8},{"x":5,"y":7},{"x":5,"y":6},{"x":5,"y":5}],"dir":{"dx":0,"dy":-1},"createdAt":2},{"id":4,"cells":[{"x":8,"y":1},{"x":7,"y":1},{"x":7,"y":0},{"x":6,"y":0},{"x":6,"y":1},{"x":6,"y":2},{"x":6,"y":3},{"x":6,"y":4},{"x":5,"y":4},{"x":5,"y":3},{"x":5,"y":2},{"x":5,"y":1},{"x":5,"y":0}],"dir":{"dx":0,"dy":-1},"createdAt":3},{"id":5,"cells":[{"x":8,"y":0},{"x":9,"y":0},{"x":10,"y":0},{"x":10,"y":1},{"x":9,"y":1}],"dir":{"dx":-1,"dy":0},"createdAt":4},{"id":6,"cells":[{"x":12,"y":1},{"x":12,"y":0},{"x":11,"y":0},{"x":11,"y":1}],"dir":{"dx":0,"dy":1},"createdAt":5},{"id":7,"cells":[{"x":17,"y":1},{"x":18,"y":1},{"x":18,"y":2},{"x":17,"y":2},{"x":16,"y":2},{"x":16,"y":1},{"x":15,"y":1},{"x":15,"y":2},{"x":15,"y":3},{"x":15,"y":4},{"x":15,"y":5},{"x":15,"y":6},{"x":15,"y":7},{"x":15,"y":8},{"x":15,"y":9},{"x":15,"y":10},{"x":16,"y":10},{"x":16,"y":9},{"x":16,"y":8},{"x":16,"y":7},{"x":16,"y":6},{"x":16,"y":5},{"x":16,"y":4},{"x":16,"y":3},{"x":17,"y":3},{"x":18,"y":3},{"x":19,"y":3},{"x":19,"y":2},{"x":19,"y":1},{"x":19,"y":0},{"x":18,"y":0},{"x":17,"y":0},{"x":16,"y":0},{"x":15,"y":0},{"x":14,"y":0},{"x":14,"y":1},{"x":14,"y":2},{"x":14,"y":3},{"x":14,"y":4},{"x":14,"y":5},{"x":14,"y":6}],"dir":{"dx":0,"dy":1},"createdAt":6},{"id":8,"cells":[{"x":3,"y":1},{"x":3,"y":2},{"x":3,"y":3},{"x":3,"y":4},{"x":3,"y":5},{"x":3,"y":6},{"x":3,"y":7},{"x":3,"y":8},{"x":3,"y":9},{"x":3,"y":10},{"x":3,"y":11},{"x":3,"y":12},{"x":3,"y":13},{"x":3,"y":14},{"x":3,"y":15},{"x":3,"y":16}],"dir":{"dx":0,"dy":1},"createdAt":7},{"id":9,"cells":[{"x":19,"y":5},{"x":19,"y":6},{"x":19,"y":7},{"x":19,"y":8},{"x":19,"y":9},{"x":19,"y":10},{"x":19,"y":11},{"x":18,"y":11},{"x":17,"y":11},{"x":16,"y":11},{"x":15,"y":11},{"x":14,"y":11},{"x":13,"y":11},{"x":12,"y":11},{"x":11,"y":11},{"x":10,"y":11},{"x":9,"y":11},{"x":9,"y":10},{"x":9,"y":9},{"x":9,"y":8},{"x":9,"y":7},{"x":9,"y":6},{"x":10,"y":6},{"x":11,"y":6},{"x":12,"y":6},{"x":12,"y":5},{"x":12,"y":4},{"x":12,"y":3},{"x":12,"y":2},{"x":11,"y":2},{"x":10,"y":2},{"x":9,"y":2},{"x":8,"y":2},{"x":7,"y":2},{"x":7,"y":3},{"x":7,"y":4},{"x":7,"y":5},{"x":7,"y":6},{"x":7,"y":7},{"x":6,"y":7},{"x":6,"y":8},{"x":6,"y":9},{"x":6,"y":10},{"x":6,"y":11},{"x":5,"y":11},{"x":5,"y":12},{"x":5,"y":13},{"x":6,"y":13},{"x":7,"y":13},{"x":8,"y":13},{"x":9,"y":13},{"x":10,"y":13},{"x":11,"y":13}],"dir":{"dx":1,"dy":0},"createdAt":8},{"id":10,"cells":[{"x":10,"y":4},{"x":9,"y":4},{"x":8,"y":4},{"x":8,"y":3},{"x":9,"y":3},{"x":10,"y":3},{"x":11,"y":3},{"x":11,"y":4},{"x":11,"y":5},{"x":10,"y":5},{"x":9,"y":5}],"dir":{"dx":-1,"dy":0},"createdAt":9},{"id":11,"cells":[{"x":17,"y":8},{"x":17,"y":9},{"x":17,"y":10},{"x":18,"y":10},{"x":18,"y":9},{"x":18,"y":8},{"x":18,"y":7},{"x":17,"y":7},{"x":17,"y":6},{"x":17,"y":5},{"x":17,"y":4}],"dir":{"dx":0,"dy":-1},"createdAt":10},{"id":12,"cells":[{"x":18,"y":6},{"x":18,"y":5},{"x":18,"y":4},{"x":19,"y":4}],"dir":{"dx":1,"dy":0},"createdAt":11},{"id":13,"cells":[{"x":1,"y":5},{"x":1,"y":6},{"x":1,"y":7},{"x":1,"y":8},{"x":1,"y":9},{"x":1,"y":10},{"x":1,"y":11},{"x":1,"y":12},{"x":0,"y":12},{"x":0,"y":11},{"x":0,"y":10},{"x":0,"y":9},{"x":0,"y":8},{"x":0,"y":7},{"x":0,"y":6},{"x":0,"y":5},{"x":0,"y":4},{"x":1,"y":4},{"x":2,"y":4},{"x":2,"y":5},{"x":2,"y":6},{"x":2,"y":7},{"x":2,"y":8},{"x":2,"y":9},{"x":2,"y":10},{"x":2,"y":11},{"x":2,"y":12},{"x":2,"y":13},{"x":2,"y":14},{"x":2,"y":15}],"dir":{"dx":0,"dy":1},"createdAt":12},{"id":14,"cells":[{"x":6,"y":5},{"x":6,"y":6}],"dir":{"dx":0,"dy":1},"createdAt":13},{"id":15,"cells":[{"x":8,"y":5},{"x":8,"y":6},{"x":8,"y":7},{"x":8,"y":8},{"x":8,"y":9},{"x":8,"y":10},{"x":8,"y":11}],"dir":{"dx":0,"dy":1},"createdAt":14},{"id":16,"cells":[{"x":14,"y":7},{"x":14,"y":8},{"x":13,"y":8},{"x":12,"y":8},{"x":11,"y":8},{"x":10,"y":8}],"dir":{"dx":-1,"dy":0},"createdAt":15},{"id":17,"cells":[{"x":6,"y":12},{"x":7,"y":12},{"x":7,"y":11},{"x":7,"y":10},{"x":7,"y":9},{"x":7,"y":8}],"dir":{"dx":0,"dy":-1},"createdAt":16},{"id":18,"cells":[{"x":13,"y":10},{"x":12,"y":10},{"x":11,"y":10},{"x":10,"y":10},{"x":10,"y":9},{"x":11,"y":9},{"x":12,"y":9},{"x":13,"y":9},{"x":14,"y":9},{"x":14,"y":10}],"dir":{"dx":0,"dy":1},"createdAt":17},{"id":19,"cells":[{"x":4,"y":13},{"x":4,"y":12},{"x":4,"y":11}],"dir":{"dx":0,"dy":-1},"createdAt":18},{"id":20,"cells":[{"x":19,"y":12},{"x":18,"y":12},{"x":17,"y":12},{"x":16,"y":12},{"x":15,"y":12},{"x":14,"y":12},{"x":13,"y":12},{"x":12,"y":12},{"x":11,"y":12},{"x":10,"y":12},{"x":9,"y":12},{"x":8,"y":12}],"dir":{"dx":-1,"dy":0},"createdAt":19},{"id":21,"cells":[{"x":2,"y":21},{"x":2,"y":22},{"x":1,"y":22},{"x":1,"y":21},{"x":1,"y":20},{"x":2,"y":20},{"x":3,"y":20},{"x":4,"y":20},{"x":4,"y":19},{"x":3,"y":19},{"x":2,"y":19},{"x":1,"y":19},{"x":1,"y":18},{"x":1,"y":17},{"x":1,"y":16},{"x":1,"y":15},{"x":1,"y":14},{"x":1,"y":13},{"x":0,"y":13},{"x":0,"y":14},{"x":0,"y":15},{"x":0,"y":16},{"x":0,"y":17},{"x":0,"y":18},{"x":0,"y":19},{"x":0,"y":20},{"x":0,"y":21},{"x":0,"y":22},{"x":0,"y":23},{"x":1,"y":23},{"x":2,"y":23},{"x":2,"y":24},{"x":3,"y":24},{"x":3,"y":23},{"x":3,"y":22},{"x":3,"y":21},{"x":4,"y":21},{"x":5,"y":21},{"x":6,"y":21},{"x":7,"y":21},{"x":8,"y":21},{"x":9,"y":21},{"x":10,"y":21},{"x":11,"y":21},{"x":12,"y":21},{"x":13,"y":21},{"x":14,"y":21},{"x":14,"y":20},{"x":15,"y":20},{"x":15,"y":21},{"x":15,"y":22},{"x":15,"y":23},{"x":15,"y":24},{"x":15,"y":25}],"dir":{"dx":0,"dy":1},"createdAt":20},{"id":22,"cells":[{"x":5,"y":19},{"x":5,"y":20},{"x":6,"y":20},{"x":6,"y":19},{"x":6,"y":18},{"x":5,"y":18},{"x":4,"y":18},{"x":4,"y":17},{"x":4,"y":16},{"x":4,"y":15},{"x":4,"y":14},{"x":5,"y":14},{"x":6,"y":14},{"x":7,"y":14},{"x":8,"y":14},{"x":9,"y":14},{"x":9,"y":15},{"x":9,"y":16},{"x":9,"y":17},{"x":9,"y":18},{"x":9,"y":19},{"x":9,"y":20},{"x":10,"y":20},{"x":11,"y":20},{"x":12,"y":20},{"x":12,"y":19},{"x":12,"y":18},{"x":12,"y":17},{"x":12,"y":16},{"x":12,"y":15},{"x":12,"y":14},{"x":12,"y":13},{"x":13,"y":13},{"x":14,"y":13},{"x":15,"y":13},{"x":16,"y":13},{"x":17,"y":13},{"x":18,"y":13},{"x":19,"y":13},{"x":19,"y":14},{"x":19,"y":15},{"x":19,"y":16},{"x":19,"y":17},{"x":19,"y":18},{"x":19,"y":19},{"x":19,"y":20},{"x":19,"y":21},{"x":19,"y":22},{"x":19,"y":23},{"x":19,"y":24}],"dir":{"dx":0,"dy":1},"createdAt":21},{"id":23,"cells":[{"x":13,"y":20},{"x":13,"y":19},{"x":13,"y":18},{"x":13,"y":17},{"x":13,"y":16},{"x":13,"y":15},{"x":13,"y":14}],"dir":{"dx":0,"dy":-1},"createdAt":22},{"id":24,"cells":[{"x":10,"y":19},{"x":10,"y":18},{"x":10,"y":17},{"x":10,"y":16},{"x":10,"y":15},{"x":10,"y":14},{"x":11,"y":14},{"x":11,"y":15},{"x":11,"y":16},{"x":11,"y":17},{"x":11,"y":18},{"x":11,"y":19}],"dir":{"dx":0,"dy":1},"createdAt":23},{"id":25,"cells":[{"x":17,"y":15},{"x":17,"y":16},{"x":17,"y":17},{"x":16,"y":17},{"x":16,"y":18},{"x":16,"y":19},{"x":15,"y":19},{"x":15,"y":18},{"x":15,"y":17},{"x":15,"y":16},{"x":15,"y":15},{"x":15,"y":14},{"x":14,"y":14},{"x":14,"y":15},{"x":14,"y":16},{"x":14,"y":17},{"x":14,"y":18},{"x":14,"y":19}],"dir":{"dx":0,"dy":1},"createdAt":24},{"id":26,"cells":[{"x":17,"y":14},{"x":18,"y":14},{"x":18,"y":15},{"x":18,"y":16},{"x":18,"y":17},{"x":18,"y":18},{"x":18,"y":19},{"x":18,"y":20},{"x":18,"y":21},{"x":18,"y":22},{"x":18,"y":23},{"x":18,"y":24},{"x":17,"y":24},{"x":16,"y":24},{"x":16,"y":23},{"x":16,"y":22},{"x":16,"y":21},{"x":16,"y":20}],"dir":{"dx":0,"dy":-1},"createdAt":25},{"id":27,"cells":[{"x":16,"y":16},{"x":16,"y":15},{"x":16,"y":14}],"dir":{"dx":0,"dy":-1},"createdAt":26},{"id":28,"cells":[{"x":5,"y":15},{"x":5,"y":16},{"x":5,"y":17}],"dir":{"dx":0,"dy":1},"createdAt":27},{"id":29,"cells":[{"x":7,"y":20},{"x":8,"y":20},{"x":8,"y":19},{"x":7,"y":19},{"x":7,"y":18},{"x":7,"y":17},{"x":7,"y":16},{"x":7,"y":15},{"x":6,"y":15},{"x":6,"y":16},{"x":6,"y":17}],"dir":{"dx":0,"dy":1},"createdAt":28},{"id":30,"cells":[{"x":8,"y":15},{"x":8,"y":16},{"x":8,"y":17},{"x":8,"y":18}],"dir":{"dx":0,"dy":1},"createdAt":29},{"id":31,"cells":[{"x":2,"y":16},{"x":2,"y":17},{"x":3,"y":17},{"x":3,"y":18},{"x":2,"y":18}],"dir":{"dx":-1,"dy":0},"createdAt":30},{"id":32,"cells":[{"x":17,"y":18},{"x":17,"y":19},{"x":17,"y":20},{"x":17,"y":21},{"x":17,"y":22},{"x":17,"y":23}],"dir":{"dx":0,"dy":1},"createdAt":31},{"id":33,"cells":[{"x":5,"y":26},{"x":6,"y":26},{"x":7,"y":26},{"x":8,"y":26},{"x":8,"y":27},{"x":7,"y":27},{"x":6,"y":27},{"x":5,"y":27},{"x":4,"y":27},{"x":4,"y":26},{"x":4,"y":25},{"x":4,"y":24},{"x":4,"y":23},{"x":4,"y":22},{"x":5,"y":22},{"x":5,"y":23},{"x":5,"y":24},{"x":5,"y":25},{"x":6,"y":25},{"x":7,"y":25},{"x":8,"y":25},{"x":9,"y":25},{"x":10,"y":25},{"x":11,"y":25},{"x":12,"y":25},{"x":13,"y":25},{"x":14,"y":25}],"dir":{"dx":1,"dy":0},"createdAt":32},{"id":34,"cells":[{"x":6,"y":22},{"x":7,"y":22},{"x":8,"y":22},{"x":9,"y":22},{"x":10,"y":22},{"x":11,"y":22},{"x":12,"y":22},{"x":13,"y":22},{"x":14,"y":22},{"x":14,"y":23},{"x":13,"y":23},{"x":12,"y":23},{"x":11,"y":23}],"dir":{"dx":-1,"dy":0},"createdAt":33},{"id":35,"cells":[{"x":6,"y":23},{"x":6,"y":24},{"x":7,"y":24},{"x":8,"y":24},{"x":9,"y":24},{"x":10,"y":24},{"x":10,"y":23},{"x":9,"y":23},{"x":8,"y":23},{"x":7,"y":23}],"dir":{"dx":-1,"dy":0},"createdAt":34},{"id":36,"cells":[{"x":14,"y":24},{"x":13,"y":24},{"x":12,"y":24},{"x":11,"y":24}],"dir":{"dx":-1,"dy":0},"createdAt":35},{"id":37,"cells":[{"x":2,"y":26},{"x":2,"y":25},{"x":3,"y":25},{"x":3,"y":26},{"x":3,"y":27},{"x":2,"y":27},{"x":1,"y":27},{"x":1,"y":26},{"x":1,"y":25},{"x":1,"y":24},{"x":0,"y":24},{"x":0,"y":25},{"x":0,"y":26},{"x":0,"y":27}],"dir":{"dx":0,"dy":1},"createdAt":36},{"id":38,"cells":[{"x":18,"y":25},{"x":19,"y":25}],"dir":{"dx":1,"dy":0},"createdAt":37},{"id":39,"cells":[{"x":16,"y":25},{"x":17,"y":25},{"x":17,"y":26},{"x":18,"y":26},{"x":19,"y":26}],"dir":{"dx":1,"dy":0},"createdAt":38},{"id":40,"cells":[{"x":12,"y":26},{"x":13,"y":26},{"x":14,"y":26},{"x":14,"y":27},{"x":13,"y":27},{"x":12,"y":27},{"x":11,"y":27},{"x":10,"y":27},{"x":9,"y":27},{"x":9,"y":26}],"dir":{"dx":0,"dy":-1},"createdAt":39},{"id":41,"cells":[{"x":10,"y":26},{"x":11,"y":26}],"dir":{"dx":1,"dy":0},"createdAt":40},{"id":42,"cells":[{"x":19,"y":27},{"x":18,"y":27},{"x":17,"y":27},{"x":16,"y":27},{"x":15,"y":27},{"x":15,"y":26},{"x":16,"y":26}],"dir":{"dx":1,"dy":0},"createdAt":41}],"solution":[1,2,4,3,12,19,37,38,39,42,21,22,9,17,31,8,5,13,20,33,28,35,34,29,14,30,15,10,16,36,40,25,18,7,11,23,27,26,32,41,24,6],"score":0,"blocked":35};
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const boardCard = document.getElementById("boardCard");
+const boardMessage = document.getElementById("boardMessage");
+const levelName = document.getElementById("levelName");
+const heartsElement = document.getElementById("hearts");
+const lifeTimer = document.getElementById("lifeTimer");
+const coinsElement = document.getElementById("coins");
+const starsElement = document.getElementById("stars");
+const progressFill = document.getElementById("progressFill");
+const progressText = document.getElementById("progressText");
+const hintButton = document.getElementById("hintButton");
+const restartButton = document.getElementById("restartButton");
+const backButton = document.getElementById("backButton");
+const menuButton = document.getElementById("menuButton");
+const modal = document.getElementById("modal");
+const modalIcon = document.getElementById("modalIcon");
+const modalTitle = document.getElementById("modalTitle");
+const modalText = document.getElementById("modalText");
+const modalPrimary = document.getElementById("modalPrimary");
+const modalSecondary = document.getElementById("modalSecondary");
+const toast = document.getElementById("toast");
+
+let state = loadState();
+let level = null;
+let arrows = [];
+let solutionOrder = [];
+let initialCount = 0;
+let selectedId = null;
+let hintId = null;
+let movingArrows = [];
+let animationFrameId = null;
+let toastTimer = null;
+let messageTimer = null;
+let lastFrame = performance.now();
+let viewport = { scale: 1, panX: 0, panY: 0 };
+const activePointers = new Map();
+let gesture = null;
+let suppressTap = false;
+
+function defaultState() {
+  return {
+    currentLevel: 1,
+    coins: 0,
+    stars: 45,
+    lives: MAX_LIVES,
+    nextLifeAt: null
+  };
+}
+
+function loadState() {
+  try {
+    return { ...defaultState(), ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
+  } catch {
+    return defaultState();
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Unele telefoane blochează localStorage pentru fișiere deschise prin content://.
+    // Jocul continuă să funcționeze, dar progresul nu se păstrează după închidere.
+  }
+}
+
+function mulberry32(seed) {
+  return function random() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function randomInt(rng, min, max) {
+  return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+function cellKey(cell) {
+  return `${cell.x},${cell.y}`;
+}
+
+function occupiedSet(items, excludedId = null) {
+  const occupied = new Set();
+  for (const arrow of items) {
+    if (arrow.id === excludedId) continue;
+    for (const cell of arrow.cells) occupied.add(cellKey(cell));
+  }
+  return occupied;
+}
+
+function isInsideBoard(cell) {
+  return cell.x >= 0 && cell.x < COLS && cell.y >= 0 && cell.y < ROWS;
+}
+
+function nextSnakePosition(cells, dir) {
+  const head = cells[cells.length - 1];
+  const nextHead = { x: head.x + dir.dx, y: head.y + dir.dy };
+  return [...cells.slice(1), nextHead];
+}
+
+function canExit(arrow, items = arrows) {
+  const occupied = occupiedSet(items, arrow.id);
+  let snake = arrow.cells.map(cell => ({ ...cell }));
+  const safetyLimit = arrow.cells.length + COLS + ROWS + 5;
+
+  for (let step = 0; step < safetyLimit && snake.some(isInsideBoard); step++) {
+    const head = snake[snake.length - 1];
+    const nextHead = { x: head.x + arrow.dir.dx, y: head.y + arrow.dir.dy };
+
+    // Capul nu poate trece nici prin altă săgeată, nici peste propriul corp.
+    // Prima celulă (coada) este exclusă deoarece se eliberează în același pas.
+    if (isInsideBoard(nextHead) && occupied.has(cellKey(nextHead))) return false;
+    const ownBody = new Set(snake.slice(1).map(cellKey));
+    if (ownBody.has(cellKey(nextHead))) return false;
+    snake = [...snake.slice(1), nextHead];
+  }
+  return !snake.some(isInsideBoard);
+}
+
+function buildSnakeRoute(arrow) {
+  const route = arrow.cells.map(cell => ({ ...cell }));
+  let snake = arrow.cells.map(cell => ({ ...cell }));
+  let travelSteps = 0;
+  const safetyLimit = arrow.cells.length + COLS + ROWS + 5;
+
+  for (let step = 0; step < safetyLimit && snake.some(isInsideBoard); step++) {
+    snake = nextSnakePosition(snake, arrow.dir);
+    route.push({ ...snake[snake.length - 1] });
+    travelSteps++;
+  }
+  return { route, travelSteps, bodyLength: arrow.cells.length - 1 };
+}
+
+function pointAlongRoute(route, distance) {
+  const safeDistance = Math.max(0, Math.min(distance, route.length - 1));
+  const index = Math.min(Math.floor(safeDistance), route.length - 2);
+  const progress = safeDistance - index;
+  const from = route[index];
+  const to = route[index + 1];
+  return {
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress
+  };
+}
+
+// Taie o porțiune din traseul ortogonal. Punctele de colț sunt păstrate,
+// astfel încât corpul nu formează niciodată diagonale în timpul animației.
+function sliceOrthogonalRoute(route, startDistance, endDistance) {
+  const points = [pointAlongRoute(route, startDistance)];
+  const firstCorner = Math.floor(startDistance) + 1;
+  const lastCorner = Math.ceil(endDistance) - 1;
+
+  for (let distance = firstCorner; distance <= lastCorner; distance++) {
+    if (distance > startDistance && distance < endDistance && route[distance]) {
+      points.push({ ...route[distance] });
+    }
+  }
+  points.push(pointAlongRoute(route, endDistance));
+  return points;
+}
+
+function makePath(rng, maxSegments, forceLong = false) {
+  const start = { x: randomInt(rng, 0, COLS - 1), y: randomInt(rng, 0, ROWS - 1) };
+  const cells = [{ ...start }];
+  const seen = new Set([cellKey(start)]);
+  let direction = DIRECTIONS[randomInt(rng, 0, DIRECTIONS.length - 1)];
+  const isLongArrow = forceLong || rng() < 0.18;
+  const segments = isLongArrow
+    ? randomInt(rng, Math.min(2, maxSegments), maxSegments)
+    : randomInt(rng, 1, Math.max(2, maxSegments - 1));
+
+  for (let segment = 0; segment < segments; segment++) {
+    const minLength = isLongArrow ? (segment === 0 ? 4 : 2) : 1;
+    const maxLength = isLongArrow ? (segment === 0 ? 8 : 6) : (segment === 0 ? 5 : 4);
+    const length = randomInt(rng, minLength, maxLength);
+    let moved = 0;
+
+    for (let step = 0; step < length; step++) {
+      const last = cells[cells.length - 1];
+      const next = { x: last.x + direction.dx, y: last.y + direction.dy };
+      const inside = next.x >= 0 && next.x < COLS && next.y >= 0 && next.y < ROWS;
+      if (!inside || seen.has(cellKey(next))) break;
+      cells.push(next);
+      seen.add(cellKey(next));
+      moved++;
+    }
+
+    if (moved === 0) break;
+    if (segment < segments - 1) {
+      const perpendicular = DIRECTIONS.filter(candidate =>
+        candidate.dx * direction.dx + candidate.dy * direction.dy === 0
+      );
+      direction = perpendicular[randomInt(rng, 0, perpendicular.length - 1)];
+    }
+  }
+
+  if (cells.length < 2) return null;
+  if (isLongArrow && (cells.length < 10 || countBends(cells) < 2)) return null;
+  const last = cells[cells.length - 1];
+  const previous = cells[cells.length - 2];
+  const dir = { dx: last.x - previous.x, dy: last.y - previous.y };
+  return { cells, dir };
+}
+
+function buildCandidate(levelNumber, seedOffset) {
+  const rng = mulberry32(levelNumber * 983 + seedOffset * 7919 + 41);
+  const target = 42;
+  const maxSegments = 6;
+  const items = [];
+  const insertionOrder = [];
+  let nextId = 1;
+  let attempts = 0;
+
+  while (items.length < target && attempts < 45000) {
+    attempts++;
+    // Primele piese sunt intenționat lungi. Piesele scurte adăugate ulterior
+    // umplu golurile și creează aspectul compact din imaginea de referință.
+    const path = makePath(rng, maxSegments, items.length < 22 && attempts < 12000);
+    if (!path) continue;
+    const occupied = occupiedSet(items);
+    if (path.cells.some(cell => occupied.has(cellKey(cell)))) continue;
+
+    const candidate = {
+      id: nextId,
+      cells: path.cells,
+      dir: path.dir,
+      createdAt: items.length
+    };
+
+    // Reverse construction: every newly inserted arrow must be removable.
+    // Removing arrows in reverse insertion order is therefore a guaranteed solution.
+    if (!canExit(candidate, items)) continue;
+    items.push(candidate);
+    insertionOrder.push(candidate.id);
+    nextId++;
+  }
+
+  const solution = [...insertionOrder].reverse();
+  const blocked = items.filter(arrow => !canExit(arrow, items)).length;
+  const bends = items.reduce((sum, arrow) => sum + countBends(arrow.cells), 0);
+  return {
+    arrows: items,
+    solution,
+    score: items.length * 20
+      + blocked * 9
+      + bends
+      + items.reduce((sum, arrow) => sum + arrow.cells.length, 0) * 1.5,
+    blocked
+  };
+}
+
+function countBends(cells) {
+  let bends = 0;
+  for (let index = 2; index < cells.length; index++) {
+    const a = cells[index - 2];
+    const b = cells[index - 1];
+    const c = cells[index];
+    if ((b.x - a.x) !== (c.x - b.x) || (b.y - a.y) !== (c.y - b.y)) bends++;
+  }
+  return bends;
+}
+
+function validateKnownSolution(items, solution) {
+  const remaining = items.map(arrow => ({
+    ...arrow,
+    cells: arrow.cells.map(cell => ({ ...cell })),
+    dir: { ...arrow.dir }
+  }));
+
+  for (const id of solution) {
+    const index = remaining.findIndex(arrow => arrow.id === id);
+    if (index === -1 || !canExit(remaining[index], remaining)) return false;
+    remaining.splice(index, 1);
+  }
+  return remaining.length === 0;
+}
+
+function transformDenseLevel(source, mode) {
+  const transformCell = cell => {
+    if (mode === 1) return { x: COLS - 1 - cell.x, y: cell.y };
+    if (mode === 2) return { x: cell.x, y: ROWS - 1 - cell.y };
+    if (mode === 3) return { x: COLS - 1 - cell.x, y: ROWS - 1 - cell.y };
+    return { ...cell };
+  };
+  const transformDirection = dir => ({
+    dx: mode === 1 || mode === 3 ? -dir.dx : dir.dx,
+    dy: mode === 2 || mode === 3 ? -dir.dy : dir.dy
+  });
+
+  return {
+    ...source,
+    arrows: source.arrows.map(arrow => ({
+      ...arrow,
+      cells: arrow.cells.map(transformCell),
+      dir: transformDirection(arrow.dir)
+    })),
+    solution: [...source.solution]
+  };
+}
+
+function generateLevel(levelNumber) {
+  // Fiecare variantă păstrează 560/560 celule ocupate și soluția verificată.
+  const candidate = transformDenseLevel(CURATED_LEVEL_ONE, (levelNumber - 1) % 4);
+  if (!validateKnownSolution(candidate.arrows, candidate.solution)) {
+    throw new Error("Nivelul dens nu a trecut verificarea de rezolvare.");
+  }
+  return candidate;
+}
+
+function cloneArrows(items) {
+  return items.map(arrow => ({
+    ...arrow,
+    cells: arrow.cells.map(cell => ({ ...cell })),
+    dir: { ...arrow.dir }
+  }));
+}
+
+function startLevel(levelNumber) {
+  hideModal();
+  if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+  animationFrameId = null;
+  selectedId = null;
+  hintId = null;
+  movingArrows = [];
+  level = generateLevel(levelNumber);
+  arrows = cloneArrows(level.arrows);
+  solutionOrder = [...level.solution];
+  initialCount = arrows.length;
+  resetViewport(false);
+  updateUI();
+  draw();
+}
+
+function restartLevel() {
+  if (!level) return;
+  hideModal();
+  if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+  animationFrameId = null;
+  arrows = cloneArrows(level.arrows);
+  solutionOrder = [...level.solution];
+  selectedId = null;
+  hintId = null;
+  movingArrows = [];
+  resetViewport(false);
+  updateUI();
+  draw();
+  showToast("Nivelul a fost repornit");
+}
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(rect.width * dpr));
+  const height = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  clampViewport();
+  draw();
+}
+
+function canvasMetrics() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const landscape = rect.width > rect.height;
+  let boardW = rect.width * (landscape ? .65 : (rect.width <= 380 ? .72 : .71));
+  let boardH = boardW * ROWS / COLS;
+  const maxBoardH = rect.height * (landscape ? .76 : .72);
+  if (boardH > maxBoardH) {
+    boardH = maxBoardH;
+    boardW = boardH * COLS / ROWS;
+  }
+  const boardX = (rect.width - boardW) / 2;
+  const preferredY = rect.height * (landscape ? .12 : .20);
+  const boardY = Math.max(8, Math.min(preferredY, rect.height - boardH - 8));
+  return {
+    rect,
+    dpr,
+    boardX,
+    boardY,
+    boardW,
+    boardH,
+    cellW: boardW / COLS,
+    cellH: boardH / ROWS
+  };
+}
+
+function pointForCell(cell, metrics) {
+  return {
+    x: metrics.boardX + (cell.x + .5) * metrics.cellW,
+    y: metrics.boardY + (cell.y + .5) * metrics.cellH
+  };
+}
+
+function traceSoftPolyline(points, radius) {
+  if (!points.length) return;
+  ctx.moveTo(points[0].x, points[0].y);
+  if (points.length === 1) return;
+
+  for (let index = 1; index < points.length - 1; index++) {
+    const previous = points[index - 1];
+    const corner = points[index];
+    const next = points[index + 1];
+    const beforeLength = Math.hypot(corner.x - previous.x, corner.y - previous.y);
+    const afterLength = Math.hypot(next.x - corner.x, next.y - corner.y);
+    const cut = Math.min(radius, beforeLength * .18, afterLength * .18);
+    const before = {
+      x: corner.x - (corner.x - previous.x) / beforeLength * cut,
+      y: corner.y - (corner.y - previous.y) / beforeLength * cut
+    };
+    const after = {
+      x: corner.x + (next.x - corner.x) / afterLength * cut,
+      y: corner.y + (next.y - corner.y) / afterLength * cut
+    };
+    ctx.lineTo(before.x, before.y);
+    ctx.quadraticCurveTo(corner.x, corner.y, after.x, after.y);
+  }
+  ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+}
+
+function drawPlatformDots(metrics) {
+  const cellSize = Math.min(metrics.cellW, metrics.cellH);
+  const dotRadius = Math.max(1, cellSize * .06);
+  ctx.save();
+  ctx.fillStyle = "#d5d9e3";
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const point = pointForCell({ x, y }, metrics);
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawArrow(arrow, metrics, cells = arrow.cells) {
+  const isSelected = arrow.id === selectedId;
+  const isHint = arrow.id === hintId;
+  const points = cells.map(cell => pointForCell(cell, metrics));
+  const cellSize = Math.min(metrics.cellW, metrics.cellH);
+  const baseWidth = Math.max(2.5, cellSize * .17);
+  const lineWidth = isSelected || isHint ? baseWidth * 1.28 : baseWidth;
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 3;
+  ctx.lineWidth = lineWidth;
+  ctx.strokeStyle = isHint ? "#08b9e9" : isSelected ? "#4d6dff" : "#111a45";
+  ctx.shadowColor = isHint ? "rgba(8,185,233,.7)" : "transparent";
+  ctx.shadowBlur = isHint ? 12 : 0;
+
+  ctx.beginPath();
+  traceSoftPolyline(points, cellSize * .09);
+  ctx.stroke();
+
+  const tip = points[points.length - 1];
+  const arrowLength = cellSize * .34;
+  const arrowWidth = cellSize * .29;
+  const dx = arrow.dir.dx;
+  const dy = arrow.dir.dy;
+  const baseX = tip.x - dx * arrowLength;
+  const baseY = tip.y - dy * arrowLength;
+  const perpendicularX = -dy;
+  const perpendicularY = dx;
+
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.beginPath();
+  ctx.moveTo(tip.x + dx * lineWidth * .22, tip.y + dy * lineWidth * .22);
+  ctx.lineTo(baseX + perpendicularX * arrowWidth / 2, baseY + perpendicularY * arrowWidth / 2);
+  ctx.lineTo(baseX - perpendicularX * arrowWidth / 2, baseY - perpendicularY * arrowWidth / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Marcaje discrete doar pe traseele săgeților, pentru citirea obstacolelor.
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = isSelected || isHint ? "rgba(255,255,255,.82)" : "rgba(218,228,255,.72)";
+  const dotRadius = Math.max(.7, baseWidth * .27);
+  for (let index = 0; index < points.length - 1; index++) {
+    ctx.beginPath();
+    ctx.arc(points[index].x, points[index].y, dotRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function draw() {
+  const metrics = canvasMetrics();
+  if (!metrics.rect.width || !metrics.rect.height) return;
+  ctx.setTransform(metrics.dpr, 0, 0, metrics.dpr, 0, 0);
+  ctx.clearRect(0, 0, metrics.rect.width, metrics.rect.height);
+  ctx.translate(viewport.panX, viewport.panY);
+  ctx.scale(viewport.scale, viewport.scale);
+  drawPlatformDots(metrics);
+
+  for (const arrow of arrows) {
+    drawArrow(arrow, metrics);
+  }
+  for (const moving of movingArrows) {
+    drawArrow(moving.arrow, metrics, moving.renderCells);
+  }
+}
+
+function distanceToSegment(point, a, b) {
+  const vx = b.x - a.x;
+  const vy = b.y - a.y;
+  const wx = point.x - a.x;
+  const wy = point.y - a.y;
+  const lengthSquared = vx * vx + vy * vy;
+  const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, (wx * vx + wy * vy) / lengthSquared));
+  const px = a.x + t * vx;
+  const py = a.y + t * vy;
+  return Math.hypot(point.x - px, point.y - py);
+}
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function clampViewport() {
+  const metrics = canvasMetrics();
+  const rect = metrics.rect;
+  viewport.scale = clamp(viewport.scale, MIN_ZOOM, MAX_ZOOM);
+  if (viewport.scale <= MIN_ZOOM + .001) {
+    viewport.scale = MIN_ZOOM;
+    viewport.panX = 0;
+    viewport.panY = 0;
+    return;
+  }
+  const xAtLeftEdge = -metrics.boardX * viewport.scale;
+  const xAtRightEdge = rect.width - (metrics.boardX + metrics.boardW) * viewport.scale;
+  const yAtTopEdge = -metrics.boardY * viewport.scale;
+  const yAtBottomEdge = rect.height - (metrics.boardY + metrics.boardH) * viewport.scale;
+  viewport.panX = clamp(
+    viewport.panX,
+    Math.min(xAtLeftEdge, xAtRightEdge),
+    Math.max(xAtLeftEdge, xAtRightEdge)
+  );
+  viewport.panY = clamp(
+    viewport.panY,
+    Math.min(yAtTopEdge, yAtBottomEdge),
+    Math.max(yAtTopEdge, yAtBottomEdge)
+  );
+}
+
+function resetViewport(redraw = true) {
+  viewport = { scale: 1, panX: 0, panY: 0 };
+  if (redraw) draw();
+}
+
+function zoomAt(screenX, screenY, requestedScale) {
+  const oldScale = viewport.scale;
+  const nextScale = clamp(requestedScale, MIN_ZOOM, MAX_ZOOM);
+  const boardX = (screenX - viewport.panX) / oldScale;
+  const boardY = (screenY - viewport.panY) / oldScale;
+  viewport.scale = nextScale;
+  viewport.panX = screenX - boardX * nextScale;
+  viewport.panY = screenY - boardY * nextScale;
+  clampViewport();
+  draw();
+}
+
+function localPointer(event) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+function boardPointFromScreen(x, y) {
+  return {
+    x: (x - viewport.panX) / viewport.scale,
+    y: (y - viewport.panY) / viewport.scale
+  };
+}
+
+function arrowAtPoint(x, y) {
+  const metrics = canvasMetrics();
+  const point = boardPointFromScreen(x, y);
+  const threshold = Math.max(5 / viewport.scale, Math.min(metrics.cellW, metrics.cellH) * .43);
+  let winner = null;
+  let bestDistance = Infinity;
+
+  for (const arrow of arrows) {
+    const points = arrow.cells.map(cell => pointForCell(cell, metrics));
+    for (let index = 1; index < points.length; index++) {
+      const distance = distanceToSegment(point, points[index - 1], points[index]);
+      if (distance < threshold && distance < bestDistance) {
+        winner = arrow;
+        bestDistance = distance;
+      }
+    }
+  }
+  return winner;
+}
+
+function handleTap(x, y) {
+  if (!modal.hidden) return;
+  const arrow = arrowAtPoint(x, y);
+  if (!arrow) return;
+
+  selectedId = arrow.id;
+  hintId = null;
+  if (state.lives <= 0) {
+    showNoLivesModal();
+    draw();
+    return;
+  }
+
+  if (canExit(arrow)) {
+    vibrate("success");
+    startExitAnimation(arrow);
+  } else {
+    vibrate("error");
+    loseLife();
+    boardCard.classList.remove("is-wrong");
+    void boardCard.offsetWidth;
+    boardCard.classList.add("is-wrong");
+    showBoardMessage("BLOCATĂ");
+    draw();
+  }
+}
+
+function beginPointerGesture(event) {
+  event.preventDefault();
+  const point = localPointer(event);
+  activePointers.set(event.pointerId, point);
+  canvas.setPointerCapture?.(event.pointerId);
+
+  if (activePointers.size === 1) {
+    gesture = {
+      type: "single",
+      pointerId: event.pointerId,
+      start: point,
+      last: point,
+      panX: viewport.panX,
+      panY: viewport.panY,
+      moved: false
+    };
+    suppressTap = false;
+    return;
+  }
+
+  if (activePointers.size === 2) {
+    const [first, second] = [...activePointers.values()];
+    const center = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+    gesture = {
+      type: "pinch",
+      distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+      scale: viewport.scale,
+      boardX: (center.x - viewport.panX) / viewport.scale,
+      boardY: (center.y - viewport.panY) / viewport.scale
+    };
+    suppressTap = true;
+  }
+}
+
+function movePointerGesture(event) {
+  if (!activePointers.has(event.pointerId)) return;
+  event.preventDefault();
+  const point = localPointer(event);
+  activePointers.set(event.pointerId, point);
+
+  if (activePointers.size >= 2 && gesture?.type === "pinch") {
+    const [first, second] = [...activePointers.values()];
+    const center = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+    const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
+    viewport.scale = clamp(gesture.scale * distance / gesture.distance, MIN_ZOOM, MAX_ZOOM);
+    viewport.panX = center.x - gesture.boardX * viewport.scale;
+    viewport.panY = center.y - gesture.boardY * viewport.scale;
+    clampViewport();
+    draw();
+    return;
+  }
+
+  if (activePointers.size === 1 && gesture?.type === "single") {
+    const dx = point.x - gesture.start.x;
+    const dy = point.y - gesture.start.y;
+    if (Math.hypot(dx, dy) > 6) gesture.moved = true;
+    gesture.last = point;
+    if (gesture.moved && viewport.scale > 1) {
+      viewport.panX = gesture.panX + dx;
+      viewport.panY = gesture.panY + dy;
+      clampViewport();
+      draw();
+    }
+  }
+}
+
+function endPointerGesture(event) {
+  if (!activePointers.has(event.pointerId)) return;
+  event.preventDefault();
+  const point = localPointer(event);
+  const wasSingleTap = activePointers.size === 1
+    && gesture?.type === "single"
+    && !gesture.moved
+    && !suppressTap;
+
+  activePointers.delete(event.pointerId);
+  try { canvas.releasePointerCapture?.(event.pointerId); } catch { /* optional */ }
+
+  if (wasSingleTap) handleTap(point.x, point.y);
+
+  if (activePointers.size === 1) {
+    const [pointerId, remaining] = [...activePointers.entries()][0];
+    gesture = {
+      type: "single",
+      pointerId,
+      start: remaining,
+      last: remaining,
+      panX: viewport.panX,
+      panY: viewport.panY,
+      moved: false
+    };
+    suppressTap = true;
+  } else if (activePointers.size === 0) {
+    gesture = null;
+    suppressTap = false;
+  }
+}
+
+function cancelPointerGesture(event) {
+  activePointers.delete(event.pointerId);
+  if (activePointers.size === 0) {
+    gesture = null;
+    suppressTap = false;
+  }
+}
+
+function handleWheelZoom(event) {
+  event.preventDefault();
+  const point = localPointer(event);
+  const factor = Math.exp(-event.deltaY * .0015);
+  zoomAt(point.x, point.y, viewport.scale * factor);
+}
+
+function startExitAnimation(arrow) {
+  const movement = buildSnakeRoute(arrow);
+  movingArrows.push({
+    id: arrow.id,
+    arrow: {
+      ...arrow,
+      cells: arrow.cells.map(cell => ({ ...cell })),
+      dir: { ...arrow.dir }
+    },
+    route: movement.route,
+    travelSteps: movement.travelSteps,
+    bodyLength: movement.bodyLength,
+    renderCells: arrow.cells.map(cell => ({ ...cell })),
+    startedAt: performance.now(),
+    stepDuration: 52
+  });
+
+  // Săgeata dispare imediat din logica obstacolelor, dar animația continuă.
+  // Astfel următoarea săgeată poate fi apăsată fără timp de așteptare.
+  arrows = arrows.filter(item => item.id !== arrow.id);
+  solutionOrder = solutionOrder.filter(id => id !== arrow.id);
+  selectedId = null;
+  state.coins += 2;
+  saveState();
+  updateUI();
+  draw();
+
+  if (animationFrameId === null) {
+    animationFrameId = requestAnimationFrame(animate);
+  }
+}
+
+function animate(now) {
+  animationFrameId = null;
+  if (movingArrows.length === 0) return;
+
+  const stillMoving = [];
+  for (const moving of movingArrows) {
+    const distance = Math.min(
+      moving.travelSteps,
+      (now - moving.startedAt) / moving.stepDuration
+    );
+    if (distance < moving.travelSteps) {
+      moving.renderCells = sliceOrthogonalRoute(
+        moving.route,
+        distance,
+        distance + moving.bodyLength
+      );
+      stillMoving.push(moving);
+    }
+  }
+  movingArrows = stillMoving;
+  draw();
+
+  if (movingArrows.length > 0) {
+    animationFrameId = requestAnimationFrame(animate);
+  } else if (arrows.length === 0) {
+    finishLevel();
+  }
+}
+
+function loseLife() {
+  if (state.lives <= 0) return;
+  state.lives--;
+  if (state.lives < MAX_LIVES && !state.nextLifeAt) {
+    state.nextLifeAt = Date.now() + LIFE_REGEN_MS;
+  }
+  saveState();
+  updateLives();
+  if (state.lives === 0) setTimeout(showNoLivesModal, 380);
+}
+
+function restoreLivesByTime() {
+  if (state.lives >= MAX_LIVES) {
+    state.lives = MAX_LIVES;
+    state.nextLifeAt = null;
+    return;
+  }
+  if (!state.nextLifeAt) state.nextLifeAt = Date.now() + LIFE_REGEN_MS;
+
+  const now = Date.now();
+  while (state.lives < MAX_LIVES && now >= state.nextLifeAt) {
+    state.lives++;
+    if (state.lives < MAX_LIVES) state.nextLifeAt += LIFE_REGEN_MS;
+    else state.nextLifeAt = null;
+  }
+}
+
+function updateLives() {
+  restoreLivesByTime();
+  heartsElement.innerHTML = "";
+  for (let index = 0; index < MAX_LIVES; index++) {
+    const heart = document.createElement("span");
+    heart.className = `heart${index >= state.lives ? " is-empty" : ""}`;
+    heart.textContent = "♥";
+    heartsElement.appendChild(heart);
+  }
+  heartsElement.setAttribute("aria-label", `${state.lives} vieți`);
+
+  if (state.lives < MAX_LIVES && state.nextLifeAt) {
+    const left = Math.max(0, state.nextLifeAt - Date.now());
+    const minutes = Math.floor(left / 60000);
+    const seconds = Math.floor((left % 60000) / 1000);
+    lifeTimer.textContent = `+1 viață în ${minutes}:${String(seconds).padStart(2, "0")}`;
+  } else {
+    lifeTimer.textContent = "";
+  }
+  saveState();
+}
+
+function updateUI() {
+  levelName.textContent = "Dificil";
+  coinsElement.textContent = state.coins.toLocaleString("ro-RO");
+  starsElement.textContent = state.stars;
+  updateLives();
+  const removed = initialCount - arrows.length;
+  progressText.textContent = `${removed} / ${initialCount}`;
+  progressFill.style.width = `${initialCount ? removed / initialCount * 100 : 0}%`;
+}
+
+function requestHint() {
+  if (arrows.length === 0) return;
+  const nextId = solutionOrder.find(id => {
+    const arrow = arrows.find(item => item.id === id);
+    return arrow && canExit(arrow);
+  });
+  const fallback = arrows.find(arrow => canExit(arrow));
+  hintId = nextId ?? fallback?.id ?? null;
+  if (hintId) {
+    selectedId = null;
+    draw();
+    showToast("Săgeata albastră poate ieși acum");
+    setTimeout(() => {
+      if (hintId) {
+        hintId = null;
+        draw();
+      }
+    }, 2200);
+  }
+}
+
+function finishLevel() {
+  state.coins += 50;
+  saveState();
+  updateUI();
+  showModal({
+    icon: "🎉",
+    title: "Nivel terminat!",
+    text: `Ai eliberat toate cele ${initialCount} săgeți și ai primit 50 de monede.`,
+    primaryText: "URMĂTORUL NIVEL",
+    onPrimary: () => {
+      state.currentLevel++;
+      saveState();
+      startLevel(state.currentLevel);
+    }
+  });
+}
+
+function showNoLivesModal() {
+  const remaining = state.nextLifeAt ? Math.max(0, state.nextLifeAt - Date.now()) : LIFE_REGEN_MS;
+  const minutes = Math.ceil(remaining / 60000);
+  showModal({
+    icon: "💔",
+    title: "Nu mai ai vieți",
+    text: `O viață se regenerează automat în aproximativ ${minutes} minute. Plata cu Telegram Stars se conectează ulterior la server.`,
+    primaryText: "AM ÎNȚELES",
+    onPrimary: hideModal
+  });
+}
+
+function showModal({ icon, title, text, primaryText, onPrimary, secondaryText, onSecondary }) {
+  modalIcon.textContent = icon;
+  modalTitle.textContent = title;
+  modalText.textContent = text;
+  modalPrimary.textContent = primaryText;
+  modalPrimary.onclick = onPrimary;
+  if (secondaryText) {
+    modalSecondary.hidden = false;
+    modalSecondary.textContent = secondaryText;
+    modalSecondary.onclick = onSecondary || hideModal;
+  } else {
+    modalSecondary.hidden = true;
+  }
+  modal.hidden = false;
+}
+
+function hideModal() {
+  modal.hidden = true;
+}
+
+function showToast(text) {
+  clearTimeout(toastTimer);
+  toast.textContent = text;
+  toast.classList.add("is-visible");
+  toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2200);
+}
+
+function showBoardMessage(text) {
+  clearTimeout(messageTimer);
+  boardMessage.textContent = text;
+  boardMessage.classList.add("is-visible");
+  messageTimer = setTimeout(() => boardMessage.classList.remove("is-visible"), 720);
+}
+
+function vibrate(type) {
+  try {
+    const haptic = window.Telegram?.WebApp?.HapticFeedback;
+    if (haptic) {
+      if (type === "error") haptic.notificationOccurred("error");
+      else haptic.impactOccurred("light");
+    } else if (navigator.vibrate) {
+      navigator.vibrate(type === "error" ? [35, 35, 35] : 20);
+    }
+  } catch {
+    // Haptics are optional.
+  }
+}
+
+function setupTelegram() {
+  try {
+    const webApp = window.Telegram?.WebApp;
+    if (!webApp) return;
+    webApp.ready();
+    webApp.expand();
+    webApp.setHeaderColor("#f8fbff");
+    webApp.setBackgroundColor("#f8fbff");
+  } catch {
+    // The same files also work in an ordinary browser.
+  }
+}
+
+canvas.addEventListener("pointerdown", beginPointerGesture);
+canvas.addEventListener("pointermove", movePointerGesture);
+canvas.addEventListener("pointerup", endPointerGesture);
+canvas.addEventListener("pointercancel", cancelPointerGesture);
+canvas.addEventListener("wheel", handleWheelZoom, { passive: false });
+hintButton.addEventListener("click", requestHint);
+restartButton.addEventListener("click", restartLevel);
+backButton.addEventListener("click", () => {
+  if (window.Telegram?.WebApp) window.Telegram.WebApp.close();
+  else showToast("În Telegram, butonul închide Mini App-ul");
+});
+
+menuButton.addEventListener("click", () => {
+  if (viewport.scale > 1) {
+    resetViewport();
+    showToast("Mărirea a fost resetată");
+  } else {
+    showToast("Mărește cu două degete și trage planul");
+  }
+});
+
+document.querySelectorAll(".nav-item").forEach(button => {
+  button.addEventListener("click", () => {
+    if (button.dataset.panel === "game") return;
+    showToast("Această secțiune va fi conectată în versiunea completă");
+  });
+});
+
+window.addEventListener("resize", resizeCanvas);
+new ResizeObserver(resizeCanvas).observe(boardCard);
+
+setInterval(() => {
+  const before = state.lives;
+  updateLives();
+  if (state.lives !== before) showToast("Ai primit o viață nouă");
+}, 1000);
+
+setupTelegram();
+startLevel(state.currentLevel);
+resizeCanvas();
+setTimeout(() => showToast("Mărește cu două degete • trage pentru deplasare"), 550);
