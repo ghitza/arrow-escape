@@ -25,11 +25,11 @@ Varianta recomandată în Visual Studio Code:
 - o săgeată iese când traseul din fața capului este liber;
 - mișcare de tip Snake: capul înaintează, iar coada urmărește toate curbele;
 - colțuri de 90° foarte puțin șlefuite, păstrate și în timpul animației;
-- mărire cu două degete pe toată zona jocului, până la marginile ecranului;
-- deplasarea liberă a planului mărit și zoom cu rotița mouse-ului;
-- marcaje punctate discrete numai pe traseele săgeților;
-- puncte gri-deschis rămase pe platformă după eliminarea fiecărei săgeți;
-- vârfuri clasice, triunghiulare, proporționate ca în imaginea de referință;
+- mărire și micșorare cu două degete, inclusiv sub dimensiunea inițială;
+- deplasarea planului în orice direcție, astfel încât oricare colț să poată ajunge în centrul ecranului;
+- zoom cu rotița mouse-ului pe calculator;
+- punctele gri-deschis ale platformei apar numai în spațiile eliberate, nu peste corpul sau coada săgeților;
+- vârfuri triunghiulare ascuțite, cu o șlefuire foarte mică și egală pe toate cele trei colțuri;
 - o săgeată este oprită dacă ar trece peste altă săgeată sau peste propriul corp;
 - tablă compactă, complet ocupată, fără caroiaj general vizibil;
 - primul nivel reproduce structura de 20 × 28 poziții și cele 42 de trasee extrase din referință;
@@ -41,7 +41,8 @@ Varianta recomandată în Visual Studio Code:
 - 3 vieți și regenerarea unei vieți la 5 minute;
 - buton de indiciu;
 - monede și progres păstrate în browser;
-- niveluri dense în patru orientări;
+- generator procedural activ pentru nivelurile următoare — toate traseele sunt amestecate pe aceeași tablă, fără regiuni independente;
+- fiecare nivel generat conține săgeți îndreptate în sus, jos, stânga și dreapta;
 - fiecare nivel are o soluție garantată și verificată;
 - verificarea automată a soluției înainte ca nivelul să fie afișat;
 - interfață adaptată pentru telefon;
@@ -60,3 +61,4 @@ Varianta recomandată în Visual Studio Code:
 - `index.html` — aceeași variantă completă pentru browser sau publicare;
 - `style.css` — designul responsive;
 - `script.js` — jocul, generatorul, verificarea soluției și viețile.
+- `CLASAMENT.md` — structura recomandată pentru autentificarea Telegram și clasamentul global.
