@@ -239,7 +239,7 @@ button {
   .wallet__item {
     min-width: 62px;
     gap: 5px;
-    font-size: 15px;
+    font-size: 15px; 
   }
 
   .coin,
