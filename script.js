@@ -1261,7 +1261,7 @@ function setupTelegram() {
 canvas.addEventListener("pointerdown", beginPointerGesture);
 canvas.addEventListener("pointermove", movePointerGesture);
 canvas.addEventListener("pointerup", endPointerGesture);
-canvas.addEventListener("pointercancel", cancelPointerGesture);
+canvas.addEventListener("pointercancel", cancelPointerGesture); 
 canvas.addEventListener("wheel", handleWheelZoom, { passive: false });
 undoButton.addEventListener("click", undoMove);
 restartButton.addEventListener("click", restartLevel);
