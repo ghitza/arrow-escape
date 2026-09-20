@@ -13,6 +13,7 @@ const CURATED_LEVEL_ONE = {"arrows":[{"id":1,"cells":[{"x":10,"y":7},{"x":11,"y"
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+document.documentElement.style.setProperty("--game-background", GAME_CONFIG.backgroundColor);
 const boardCard = document.getElementById("boardCard");
 const boardMessage = document.getElementById("boardMessage");
 const levelName = document.getElementById("levelName");
@@ -20,12 +21,8 @@ const heartsElement = document.getElementById("hearts");
 const lifeTimer = document.getElementById("lifeTimer");
 const coinsElement = document.getElementById("coins");
 const starsElement = document.getElementById("stars");
-const progressFill = document.getElementById("progressFill");
-const progressText = document.getElementById("progressText");
-const hintButton = document.getElementById("hintButton");
 const restartButton = document.getElementById("restartButton");
 const backButton = document.getElementById("backButton");
-const menuButton = document.getElementById("menuButton");
 const modal = document.getElementById("modal");
 const modalIcon = document.getElementById("modalIcon");
 const modalTitle = document.getElementById("modalTitle");
@@ -33,20 +30,20 @@ const modalText = document.getElementById("modalText");
 const modalPrimary = document.getElementById("modalPrimary");
 const modalSecondary = document.getElementById("modalSecondary");
 const toast = document.getElementById("toast");
+const undoButton = document.getElementById("undoButton");
 
 let state = loadState();
 let level = null;
 let arrows = [];
-let solutionOrder = [];
 let initialCount = 0;
 let selectedId = null;
-let hintId = null;
 let movingArrows = [];
 let animationFrameId = null;
 let toastTimer = null;
 let messageTimer = null;
 let lastFrame = performance.now();
 let viewport = { scale: 1, panX: 0, panY: 0 };
+let undoStack = [];
 const activePointers = new Map();
 let gesture = null;
 let suppressTap = false;
@@ -57,7 +54,9 @@ function defaultState() {
     coins: 0,
     stars: 45,
     lives: MAX_LIVES,
-    nextLifeAt: null
+    nextLifeAt: null,
+    tutorialSeen: false,
+    completedLevels: []
   };
 }
 
@@ -76,6 +75,82 @@ function saveState() {
     // Unele telefoane blochează localStorage pentru fișiere deschise prin content://.
     // Jocul continuă să funcționeze, dar progresul nu se păstrează după închidere.
   }
+}
+
+function cloneArrowList(items) {
+  return items.map(arrow => ({
+    ...arrow,
+    cells: arrow.cells.map(cell => ({ ...cell })),
+    dir: { ...arrow.dir }
+  }));
+}
+
+function snapshotGameState() {
+  return {
+    arrows: cloneArrowList(arrows),
+    selectedId,
+    movingArrows: movingArrows.map(moving => ({
+      ...moving,
+      arrow: {
+        ...moving.arrow,
+        cells: moving.arrow.cells.map(cell => ({ ...cell })),
+        dir: { ...moving.arrow.dir }
+      },
+      route: moving.route.map(cell => ({ ...cell })),
+      renderCells: moving.renderCells.map(cell => ({ ...cell }))
+    }))
+  };
+}
+
+function restoreGameState(snapshot) {
+  if (!snapshot) return;
+  if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+  animationFrameId = null;
+  arrows = cloneArrowList(snapshot.arrows);
+  selectedId = snapshot.selectedId;
+  movingArrows = snapshot.movingArrows.map(moving => ({
+    ...moving,
+    arrow: {
+      ...moving.arrow,
+      cells: moving.arrow.cells.map(cell => ({ ...cell })),
+      dir: { ...moving.arrow.dir }
+    },
+    route: moving.route.map(cell => ({ ...cell })),
+    renderCells: moving.renderCells.map(cell => ({ ...cell }))
+  }));
+  updateUI();
+  draw();
+}
+
+function pushUndoState() {
+  undoStack.push(snapshotGameState());
+  if (undoStack.length > 12) undoStack.shift();
+}
+
+function undoMove() {
+  if (!undoStack.length) {
+    showToast("Nimic de anulat");
+    return;
+  }
+  const snapshot = undoStack.pop();
+  restoreGameState(snapshot);
+  showToast("Ultima mișcare a fost anulată");
+}
+
+function showTutorial() {
+  if (state.tutorialSeen) return;
+  state.tutorialSeen = true;
+  saveState();
+  showModal({
+    icon: "🎯",
+    title: "Tutorial rapid",
+    text: "Apasă pe o săgeată care are drum liber. Dacă alegi una blocată, pierzi o viață. Alege cu răbdare următorul pas.",
+    primaryText: "START",
+    onPrimary: () => {
+      hideModal();
+      draw();
+    }
+  });
 }
 
 function mulberry32(seed) {
@@ -463,7 +538,11 @@ function generateDenseLevel(levelNumber, seedOffset = 0) {
 }
 
 function generateLevel(levelNumber) {
-  if (levelNumber === 1) return copyLevel(CURATED_LEVEL_ONE);
+  if (levelNumber === 1) {
+    const tutorialLevel = copyLevel(CURATED_LEVEL_ONE);
+    tutorialLevel.name = "Nivel 1";
+    return tutorialLevel;
+  }
 
   // Nivelurile următoare sunt construite procedural, nu oglindite. Generatorul
   // acoperă toate cele 560 de celule și acceptă nivelul numai după verificarea
@@ -483,7 +562,10 @@ function generateLevel(levelNumber) {
       bestCandidate = candidate;
     }
   }
-  if (bestCandidate) return bestCandidate;
+  if (bestCandidate) {
+    bestCandidate.name = `Nivel ${levelNumber}`;
+    return bestCandidate;
+  }
   throw new Error("Generatorul nu a putut crea un nivel rezolvabil.");
 }
 
@@ -500,15 +582,18 @@ function startLevel(levelNumber) {
   if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
   animationFrameId = null;
   selectedId = null;
-  hintId = null;
   movingArrows = [];
+  undoStack = [];
   level = generateLevel(levelNumber);
   arrows = cloneArrows(level.arrows);
-  solutionOrder = [...level.solution];
   initialCount = arrows.length;
   resetViewport(false);
   updateUI();
   draw();
+
+  if (levelNumber === 1 && !state.tutorialSeen) {
+    showTutorial();
+  }
 }
 
 function restartLevel() {
@@ -517,9 +602,7 @@ function restartLevel() {
   if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
   animationFrameId = null;
   arrows = cloneArrows(level.arrows);
-  solutionOrder = [...level.solution];
   selectedId = null;
-  hintId = null;
   movingArrows = [];
   resetViewport(false);
   updateUI();
@@ -601,7 +684,7 @@ function traceSoftPolyline(points, radius) {
 
 function drawPlatformDots(metrics) {
   const cellSize = Math.min(metrics.cellW, metrics.cellH);
-  const dotRadius = Math.max(1, cellSize * .06);
+  const dotRadius = Math.max(1, cellSize * GAME_CONFIG.boardDotRadius);
   const coveredByStaticArrow = occupiedSet(arrows);
   const coveredByMovingArrow = cell => movingArrows.some(moving => {
     for (let index = 1; index < moving.renderCells.length; index++) {
@@ -612,7 +695,9 @@ function drawPlatformDots(metrics) {
     return false;
   });
   ctx.save();
-  ctx.fillStyle = "#d5d9e3";
+  ctx.fillStyle = GAME_CONFIG.backgroundColor;
+  ctx.fillRect(0, 0, metrics.boardW, metrics.boardH);
+  ctx.fillStyle = GAME_CONFIG.boardDotColor;
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       const cell = { x, y };
@@ -627,7 +712,7 @@ function drawPlatformDots(metrics) {
 }
 
 function traceSlightlyRoundedTriangle(a, b, c) {
-  const roundness = .03;
+  const roundness = GAME_CONFIG.arrowHeadRoundness;
   const entry = (vertex, previous) => ({
     x: vertex.x + (previous.x - vertex.x) * roundness,
     y: vertex.y + (previous.y - vertex.y) * roundness
@@ -653,14 +738,13 @@ function traceSlightlyRoundedTriangle(a, b, c) {
 
 function drawArrow(arrow, metrics, cells = arrow.cells) {
   const isSelected = arrow.id === selectedId;
-  const isHint = arrow.id === hintId;
   const points = cells.map(cell => pointForCell(cell, metrics));
   const cellSize = Math.min(metrics.cellW, metrics.cellH);
-  const baseWidth = Math.max(2.5, cellSize * .17);
-  const lineWidth = isSelected || isHint ? baseWidth * 1.28 : baseWidth;
+  const baseWidth = Math.max(GAME_CONFIG.arrowBodyMinimum, cellSize * GAME_CONFIG.arrowBodyWidth);
+  const lineWidth = isSelected ? baseWidth * GAME_CONFIG.selectedArrowScale : baseWidth;
   const tip = points[points.length - 1];
-  const arrowLength = cellSize * .48;
-  const arrowWidth = cellSize * .42;
+  const arrowLength = cellSize * GAME_CONFIG.arrowHeadLength;
+  const arrowWidth = cellSize * GAME_CONFIG.arrowHeadWidth;
   const dx = arrow.dir.dx;
   const dy = arrow.dir.dy;
   const tipX = tip.x + dx * lineWidth * .15;
@@ -680,22 +764,22 @@ function drawArrow(arrow, metrics, cells = arrow.cells) {
   const shaftPoints = points.slice(0, -1);
   shaftPoints.push({ x: baseX, y: baseY });
 
+  const strokeColor = isSelected ? "#f6fbff" : GAME_CONFIG.arrowColors[(arrow.id - 1) % GAME_CONFIG.arrowColors.length];
+
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.miterLimit = 3;
-  ctx.lineWidth = lineWidth;
-  ctx.strokeStyle = isHint ? "#08b9e9" : isSelected ? "#4d6dff" : "#111a45";
-  ctx.shadowColor = isHint ? "rgba(8,185,233,.7)" : "transparent";
-  ctx.shadowBlur = isHint ? 12 : 0;
 
+  ctx.lineWidth = lineWidth;
+  ctx.strokeStyle = strokeColor;
+  ctx.fillStyle = strokeColor;
+  ctx.shadowColor = "rgba(0,0,0,0)";
+  ctx.shadowBlur = 0;
   ctx.beginPath();
-  traceSoftPolyline(shaftPoints, cellSize * .09);
+  traceSoftPolyline(shaftPoints, cellSize * GAME_CONFIG.cornerRoundness);
   ctx.stroke();
 
-  // Corpul se oprește la baza triunghiului. Toate cele trei colțuri ale
-  // vârfului au aceeași rotunjire foarte mică.
-  ctx.fillStyle = ctx.strokeStyle;
   ctx.beginPath();
   traceSlightlyRoundedTriangle(
     { x: tipX, y: tipY },
@@ -798,18 +882,27 @@ function boardPointFromScreen(x, y) {
 function arrowAtPoint(x, y) {
   const metrics = canvasMetrics();
   const point = boardPointFromScreen(x, y);
-  const threshold = Math.max(5 / viewport.scale, Math.min(metrics.cellW, metrics.cellH) * .43);
+  const baseThreshold = Math.max(12 / viewport.scale, Math.min(metrics.cellW, metrics.cellH) * .7);
+  const headThreshold = Math.max(18 / viewport.scale, Math.min(metrics.cellW, metrics.cellH) * .9);
   let winner = null;
   let bestDistance = Infinity;
 
   for (const arrow of arrows) {
     const points = arrow.cells.map(cell => pointForCell(cell, metrics));
+    const tip = points[points.length - 1];
+
     for (let index = 1; index < points.length; index++) {
       const distance = distanceToSegment(point, points[index - 1], points[index]);
-      if (distance < threshold && distance < bestDistance) {
+      if (distance < baseThreshold && distance < bestDistance) {
         winner = arrow;
         bestDistance = distance;
       }
+    }
+
+    const tipDistance = Math.hypot(point.x - tip.x, point.y - tip.y);
+    if (tipDistance < headThreshold && tipDistance < bestDistance) {
+      winner = arrow;
+      bestDistance = tipDistance;
     }
   }
   return winner;
@@ -821,7 +914,6 @@ function handleTap(x, y) {
   if (!arrow) return;
 
   selectedId = arrow.id;
-  hintId = null;
   if (state.lives <= 0) {
     showNoLivesModal();
     draw();
@@ -829,9 +921,11 @@ function handleTap(x, y) {
   }
 
   if (canExit(arrow)) {
+    pushUndoState();
     vibrate("success");
     startExitAnimation(arrow);
   } else {
+    pushUndoState();
     vibrate("error");
     loseLife();
     boardCard.classList.remove("is-wrong");
@@ -956,6 +1050,7 @@ function handleWheelZoom(event) {
 }
 
 function startExitAnimation(arrow) {
+  pushUndoState();
   const movement = buildSnakeRoute(arrow);
   movingArrows.push({
     id: arrow.id,
@@ -975,7 +1070,6 @@ function startExitAnimation(arrow) {
   // Săgeata dispare imediat din logica obstacolelor, dar animația continuă.
   // Astfel următoarea săgeată poate fi apăsată fără timp de așteptare.
   arrows = arrows.filter(item => item.id !== arrow.id);
-  solutionOrder = solutionOrder.filter(id => id !== arrow.id);
   selectedId = null;
   state.coins += 2;
   saveState();
@@ -1066,38 +1160,16 @@ function updateLives() {
 }
 
 function updateUI() {
-  levelName.textContent = "Dificil";
+  const displayedName = level?.name || `Nivel ${state.currentLevel}`;
+  levelName.textContent = displayedName;
   coinsElement.textContent = state.coins.toLocaleString("ro-RO");
   starsElement.textContent = state.stars;
   updateLives();
-  const removed = initialCount - arrows.length;
-  progressText.textContent = `${removed} / ${initialCount}`;
-  progressFill.style.width = `${initialCount ? removed / initialCount * 100 : 0}%`;
-}
-
-function requestHint() {
-  if (arrows.length === 0) return;
-  const nextId = solutionOrder.find(id => {
-    const arrow = arrows.find(item => item.id === id);
-    return arrow && canExit(arrow);
-  });
-  const fallback = arrows.find(arrow => canExit(arrow));
-  hintId = nextId ?? fallback?.id ?? null;
-  if (hintId) {
-    selectedId = null;
-    draw();
-    showToast("Săgeata albastră poate ieși acum");
-    setTimeout(() => {
-      if (hintId) {
-        hintId = null;
-        draw();
-      }
-    }, 2200);
-  }
 }
 
 function finishLevel() {
   state.coins += 50;
+  state.completedLevels = [...new Set([...(state.completedLevels || []), state.currentLevel])];
   saveState();
   updateUI();
   showModal({
@@ -1179,8 +1251,8 @@ function setupTelegram() {
     if (!webApp) return;
     webApp.ready();
     webApp.expand();
-    webApp.setHeaderColor("#f8fbff");
-    webApp.setBackgroundColor("#f8fbff");
+    webApp.setHeaderColor(GAME_CONFIG.backgroundColor);
+    webApp.setBackgroundColor(GAME_CONFIG.backgroundColor);
   } catch {
     // The same files also work in an ordinary browser.
   }
@@ -1191,30 +1263,11 @@ canvas.addEventListener("pointermove", movePointerGesture);
 canvas.addEventListener("pointerup", endPointerGesture);
 canvas.addEventListener("pointercancel", cancelPointerGesture);
 canvas.addEventListener("wheel", handleWheelZoom, { passive: false });
-hintButton.addEventListener("click", requestHint);
+undoButton.addEventListener("click", undoMove);
 restartButton.addEventListener("click", restartLevel);
 backButton.addEventListener("click", () => {
   if (window.Telegram?.WebApp) window.Telegram.WebApp.close();
   else showToast("În Telegram, butonul închide Mini App-ul");
-});
-
-menuButton.addEventListener("click", () => {
-  const viewWasChanged = Math.abs(viewport.scale - 1) > .01
-    || Math.abs(viewport.panX) > 1
-    || Math.abs(viewport.panY) > 1;
-  if (viewWasChanged) {
-    resetViewport();
-    showToast("Poziția și mărimea au fost resetate");
-  } else {
-    showToast("Apropie, depărtează și mută planul cu degetele");
-  }
-});
-
-document.querySelectorAll(".nav-item").forEach(button => {
-  button.addEventListener("click", () => {
-    if (button.dataset.panel === "game") return;
-    showToast("Această secțiune va fi conectată în versiunea completă");
-  });
 });
 
 window.addEventListener("resize", resizeCanvas);

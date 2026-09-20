@@ -4,15 +4,7 @@ Acesta este un prototip funcțional pentru jocul cu săgeți lungi și îndoite.
 
 ## Cum îl pornești
 
-Varianta rapidă pe telefon:
-
-1. Dezarhivează proiectul.
-2. Deschide fișierul `DESCHIDE-JOCUL.html` în Google Chrome sau Microsoft Edge.
-
-Fișierele `DESCHIDE-JOCUL.html` și `index.html` conțin tot jocul într-un singur
-fișier. Funcționează și când Android îl deschide printr-o adresă `content://`.
-
-Varianta recomandată în Visual Studio Code:
+Deschide `index.html` direct în browser sau folosește Live Server:
 
 1. Deschide folderul proiectului în Visual Studio Code.
 2. Instalează extensia **Live Server**.
@@ -39,7 +31,6 @@ Varianta recomandată în Visual Studio Code:
 - mai multe săgeți pot părăsi platforma simultan;
 - pierderea unei vieți când alegi o săgeată blocată;
 - 3 vieți și regenerarea unei vieți la 5 minute;
-- buton de indiciu;
 - monede și progres păstrate în browser;
 - generator procedural activ pentru nivelurile următoare — toate traseele sunt amestecate pe aceeași tablă, fără regiuni independente;
 - fiecare nivel generat conține săgeți îndreptate în sus, jos, stânga și dreapta;
@@ -51,14 +42,13 @@ Varianta recomandată în Visual Studio Code:
 ## Ce este încă demonstrativ
 
 - Telegram Stars nu procesează încă plăți reale;
-- clasamentul, roata și profilul sunt butoane demonstrative;
 - datele sunt salvate local, nu într-o bază de date;
 - pentru lansare publică trebuie adăugate botul Telegram, serverul Node.js și PostgreSQL.
 
 ## Fișiere
 
-- `DESCHIDE-JOCUL.html` — jocul complet într-un singur fișier, recomandat pentru telefon;
-- `index.html` — aceeași variantă completă pentru browser sau publicare;
+- `index.html` — structura paginii și controalele jocului;
+- `config.js` — setările vizuale editabile pentru fundal, săgeți, puncte și culori;
 - `style.css` — designul responsive;
 - `script.js` — jocul, generatorul, verificarea soluției și viețile.
 - `CLASAMENT.md` — structura recomandată pentru autentificarea Telegram și clasamentul global.
