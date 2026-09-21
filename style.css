@@ -63,6 +63,23 @@ button {
   transition: transform .16s ease, background .16s ease;
 }
 
+.hearts {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.heart {
+  color: #ff3b4f;
+  font-size: clamp(24px, 6vw, 34px);
+  line-height: 1;
+}
+
+.heart.is-empty {
+  color: #61676b;
+}
+
 .game-area {
   position: relative;
   min-height: 100dvh;
