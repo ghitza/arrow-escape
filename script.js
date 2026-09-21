@@ -627,10 +627,12 @@ function canvasMetrics() {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const landscape = rect.width > rect.height;
-  let boardW = rect.width * (landscape ? .65 : (rect.width <= 380 ? .72 : .71));
+  // Pe telefon, platforma pornește la lățimea completă a ecranului.
+  // Zoom-ul și deplasarea rămân libere după afișarea inițială.
+  let boardW = rect.width * (landscape ? .65 : 1);
   let boardH = boardW * ROWS / COLS;
   const maxBoardH = rect.height * (landscape ? .76 : .72);
-  if (boardH > maxBoardH) {
+  if (landscape && boardH > maxBoardH) {
     boardH = maxBoardH;
     boardW = boardH * COLS / ROWS;
   }
