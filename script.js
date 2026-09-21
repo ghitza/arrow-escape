@@ -627,9 +627,9 @@ function canvasMetrics() {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const landscape = rect.width > rect.height;
-  // Pe telefon, platforma pornește la lățimea completă a ecranului.
+  // Pe telefon, platforma pornește la 90% din lățimea ecranului.
   // Zoom-ul și deplasarea rămân libere după afișarea inițială.
-  let boardW = rect.width * (landscape ? .65 : 1);
+  let boardW = rect.width * (landscape ? .65 : .9);
   let boardH = boardW * ROWS / COLS;
   const maxBoardH = rect.height * (landscape ? .76 : .72);
   if (landscape && boardH > maxBoardH) {
